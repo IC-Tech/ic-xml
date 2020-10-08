@@ -1,0 +1,21 @@
+{
+  "name": "ic-xml",
+  "version": "1.0.0",
+  "description": "Parse XML to JS Object (JSON) and convert JS Object (JSON) to XML",
+  "main": "src/index.js",
+  "scripts": {},
+  "keywords": [
+    "xml",
+    "json"
+  ],
+  "author": "Imesh Chamara <imesh1chamara@gmail.com> (https://ic-tech.now.sh)",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IC-Tech/ic-xml.git"
+  },
+  "bugs": {
+    "url": "https://github.com/IC-Tech/ic-xml/issues"
+  },
+  "homepage": "https://github.com/IC-Tech/ic-xml"
+}
