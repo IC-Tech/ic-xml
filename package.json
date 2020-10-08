@@ -1,6 +1,6 @@
 {
   "name": "@ic-tech/ic-xml",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Parse XML to JS Object (JSON) and convert JS Object (JSON) to XML",
   "main": "src/index.js",
   "scripts": {},
@@ -18,5 +18,10 @@
     "url": "https://github.com/IC-Tech/ic-xml/issues"
   },
   "homepage": "https://github.com/IC-Tech/ic-xml",
-  "publishConfig": { "registry": "https://npm.pkg.github.com/" }
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
+  },
+  "dependencies": {
+    "ic-xentity": "^1.0.0"
+  }
 }

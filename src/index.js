@@ -1,3 +1,5 @@
+const {encode, decode} = require('ic-xentity')
+
 const readXML = (res, op) => {
 	op = op || {}
 	const trimSt = a => a.replace(/^[\x09-\x0d\x20\x85\xA0]+/, '')
@@ -42,7 +44,7 @@ const readXML = (res, op) => {
 					if(typeof atval != 'string') throw 'XML file is corrupted'
 					i += at.length + atval.length
 					atval = atval.substring(2, atval.length - 1)
-					attributes[at] = atval
+					attributes[at] = decode(atval)
 					continue
 				}
 				i += at.length
@@ -59,7 +61,7 @@ const readXML = (res, op) => {
 			val = val && val[1]
 			if(typeof val != 'string') throw 'XML file is corrupted'
 			res = res.substr(i)
-			value = val
+			value = decode(val)
 		}
 		if(isElm == 1) {
 			while(isElm == 1) {
@@ -125,8 +127,8 @@ const writeXML = (res, op) => {
 		var _a = val || !!a.elements.length
 		return `<${a.name}${Object.keys(a.attributes).length ? ' ' : ''}${Object.keys(a.attributes).map(b => {
 			if(b.match(/[\x09-\x0d\x20\x85\xA0\/><?!]/)) throw 'attribute name can not contain invalid characters'
-			return `${b}="${str(a.attributes[b]).replace(/"/g, '&quot;')}"`
-		}).join(' ')}${_a ? '' : '/'}>${!_a ? '' : (a.elements.length ? a.elements.map(b => wrEl(b)).join('') : str(a.value))}${_a ? `</${a.name}>` : ''}`
+			return `${b}="${encode(str(a.attributes[b]))}"`
+		}).join(' ')}${_a ? '' : '/'}>${!_a ? '' : (a.elements.length ? a.elements.map(b => wrEl(b)).join('') : encode(str(a.value)))}${_a ? `</${a.name}>` : ''}`
 	}
 	return (op.declaration != 0 ? (typeof op.declaration == 'string' ? op.declaration : `<?xml version="1.0" encoding="UTF-8"?>`) : '') + wrEl(res)
 }
