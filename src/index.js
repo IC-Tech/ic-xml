@@ -127,8 +127,8 @@ const writeXML = (res, op) => {
 		var _a = val || !!a.elements.length
 		return `<${a.name}${Object.keys(a.attributes).length ? ' ' : ''}${Object.keys(a.attributes).map(b => {
 			if(b.match(/[\x09-\x0d\x20\x85\xA0\/><?!]/)) throw 'attribute name can not contain invalid characters'
-			return `${b}="${encode(str(a.attributes[b]))}"`
-		}).join(' ')}${_a ? '' : '/'}>${!_a ? '' : (a.elements.length ? a.elements.map(b => wrEl(b)).join('') : encode(str(a.value)))}${_a ? `</${a.name}>` : ''}`
+			return `${b}="${encode(str(a.attributes[b]), {mode: 'predefined'})}"`
+		}).join(' ')}${_a ? '' : '/'}>${!_a ? '' : (a.elements.length ? a.elements.map(b => wrEl(b)).join('') : encode(str(a.value), {mode: 'predefined'}))}${_a ? `</${a.name}>` : ''}`
 	}
 	return (op.declaration != 0 ? (typeof op.declaration == 'string' ? op.declaration : `<?xml version="1.0" encoding="UTF-8"?>`) : '') + wrEl(res)
 }
