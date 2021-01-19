@@ -54,8 +54,8 @@ const readXML = (res, op) => {
 			throw 'XML file is corrupted'
 		}
 		res = res.substr(i)
-		var isElm = empty ? 2 : isElement(res)
-		if(isElm == 0) {
+		var isElm = empty ? 3 : isElement(res)
+		if(isElm == 0 || isElm == 2) {
 			var val = new RegExp(`([^]*?)<\\/${name.replace(/[^a-z0-9]/gi, '\\$&')}>`).exec(res)
 			i = (val && val[0].length) || 0
 			val = val && val[1]
