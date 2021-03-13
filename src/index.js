@@ -8,40 +8,43 @@ const readXML = (res, op) => {
 	// declaration remove
 	res = res.replace(/<\?[^]*?\?>/g, '')
 	// comments remove
-	res = res.replace(/<\!--[^]*?\-->/g, '')
+	if(!op.comments) res = res.replace(/<\!--[^]*?\-->/g, '')
+	// CDATA
+	res = res.replace(/<\!\[CDATA\[([^]*?)\]\]>/, (a,b) => encode(b))
 
 	const readElement = res => {
 		res = trimSt(res)
-		var name = /^<([^\x09-\x0d\x20\x85\xA0\/><?!]+)/.exec(res)
-		if(!(name = name && name[1])) throw 'XML file is corrupted'
+		var name = /^<([^\x00-\x2C\/\x3B-\x40\x5B-\x5E`\x7B-\x7E\x85\xA0]+)/.exec(res),
+		i = 0, empty = !1, attributes = {}, elements = [], value = undefined, type
+		if(!(name = name && name[1])) {
+			if(op.comments && (name = /^<!--([^]*?)-->/.exec(res)) && name[1]) return {res: res.substr(name[0].length), name: '', type: 'comment', attributes, elements, value: name[1].trim()}
+			throw new Error('invalid data at xml file')
+		}
 		res = res.substr(name.length + 1)
-		var i = 0, empty = !1, attributes = {}, elements = [], value = undefined;
 		while(i < res.length) {
 			if(res[i].match(/[\x09-\x0d\x20\x85\xA0]/)) {
 				i++
 				continue
 			}
-			if(res[i] == '/') {
-				if(res[i + 1] == '>') {
-					i += 2
-					empty = !0
-					break
-				}
-				throw 'XML file is corrupted'
+			if(res[i] == '/' && res[i + 1] == '>') {
+				i += 2
+				empty = !0
+				type = 'self-closing'
+				break
 			}
 			if(res[i] == '>') {
 				i++
 				break
 			}
-			if(res[i].match(/[\x01-\x25\x27-\x40\x5b-\x60\x7b-\x7f]/)) throw 'XML file is corrupted'
+			if(res[i].match(/[\x01-\x25\x27-\x40\x5b-\x60\x7b-\x7f]/)) throw new Error('invalid data at tag "' + name + '"')
 			var at = res.substr(i).match(/[^\x09-\x0d\x20\x85\xA0=\/'"><]+/)
 			if((at = at[0])) {
 				if(res[i + at.length] == '=') {
 					var atchr = res[i + at.length + 1]
-					if(atchr != '"' && atchr != "'") throw 'XML file is corrupted'
+					if(atchr != '"' && atchr != "'") throw new Error('invalid attribute at tag "' + name + '"')
 					var atval = res.substr(i + at.length).match(new RegExp(`=${atchr}[^]*?${atchr}`))
 					atval = atval && atval[0]
-					if(typeof atval != 'string') throw 'XML file is corrupted'
+					if(typeof atval != 'string') throw new Error('invalid attribute at tag "' + name + '"')
 					i += at.length + atval.length
 					atval = atval.substring(2, atval.length - 1)
 					attributes[at] = decode(atval)
@@ -51,7 +54,7 @@ const readXML = (res, op) => {
 				attributes[at] = undefined
 				continue
 			}
-			throw 'XML file is corrupted'
+			throw new Error('invalid data at tag "' + name + '"')
 		}
 		res = res.substr(i)
 		var isElm = empty ? 3 : isElement(res)
@@ -59,7 +62,7 @@ const readXML = (res, op) => {
 			var val = new RegExp(`([^]*?)<\\/${name.replace(/[^a-z0-9]/gi, '\\$&')}>`).exec(res)
 			i = (val && val[0].length) || 0
 			val = val && val[1]
-			if(typeof val != 'string') throw 'XML file is corrupted'
+			if(typeof val != 'string') throw new Error('invalid end of tag "' + name + '"')
 			res = res.substr(i)
 			value = decode(val)
 		}
@@ -67,16 +70,16 @@ const readXML = (res, op) => {
 			while(isElm == 1) {
 				var el = readElement(res)
 				res = el.res
-				elements.push({name: el.name, attributes: el.attributes, elements: el.elements, value: el.value})
+				elements.push({name: el.name, attributes: el.attributes, elements: el.elements, value: el.value, type: el.type})
 				isElm = isElement(res)
 			}
-			if(isElm == 0) throw 'XML file is corrupted'
+			if(isElm == 0) throw new Error('cannot found end tag of "' + name + '"')
 			res = trimSt(res)
 			var cls = `</${name}>`
-			if(!res.startsWith(cls)) throw 'XML file is corrupted'
+			if(!res.startsWith(cls)) throw new Error('invalid end tag of "' + name + '"')
 			res = res.substr(cls.length)
 		}
-		return {res, name, attributes, elements, value}
+		return {res, name, attributes, elements, value, type}
 	}
 	const parser = (el, op) => {
 		op = op || {}
@@ -96,7 +99,7 @@ const readXML = (res, op) => {
 			el.elements = el.elements.map(a => prs(a))
 			if(op.array == 1 && !el.elements.some(a => (a.elements && a.elements.length != 0) || (a.attributes && Object.keys(a.attributes).length != 0))) el.elements = el.elements.map(a => a.value)
 			if(op.clean != 0) {
-				if(typeof el.value == 'undefined') delete el.value
+				;['value', 'type'].forEach(a => typeof el[a] == 'undefined' ? delete el[a] : 0)
 				if(Object.keys(el.attributes).length == 0) delete el.attributes
 				if(el.elements.length == 0) delete el.elements
 			}
@@ -116,19 +119,23 @@ const readXML = (res, op) => {
 }
 const writeXML = (res, op) => {
 	op = op || {}
-	const _v = a => !!a || typeof a == 'number' || typeof a == 'string' || typeof a == 'boolean'
-	const str = a => (a && a instanceof Date && a.toISOString()) || (_v(a) ? a.toString() : '')
+	const str = a => (a && a instanceof Date && a.toISOString()) || (typeof a != 'undefined' && a !== null ? a : '').toString()
+	const err = a => a.match(/[\x00-\x2C\/\x3B-\x40\x5B-\x5E`\x7B-\x7E\x85\xA0]/) || a.match(/^(\d|-|\.)/)
 	const wrEl = a => {
-		if(!_v(a.name)) throw 'Tag name required'
-		if((a.name = str(a.name)).match(/[\x09-\x0d\x20\x85\xA0\/><?!]/)) throw 'Tag name can not contain invalid characters'
+		if(!(a.name = str(a.name))) {
+			if(a.type == 'comment') return op.nocomments ? '' : `<!-- ${str(a.value).replace(/-->/g, a => '_')} -->`
+			throw new Error('Tag names required')
+		}
+		if(err(a.name = str(a.name))) throw new Error('Tag names can not contain invalid characters')
+		if(a.name.match(/^\d/)) throw new Error('Tag names cannot starts with numbers')
 		a.attributes = a.attributes || {}
 		a.elements = a.elements || []
-		var val = _v(a.value)
-		var _a = val || !!a.elements.length
+		var _a = str(a.value) || !!a.elements.length,
+		_b = op.noselfauto ? a.type != 'self-closing' : _a
 		return `<${a.name}${Object.keys(a.attributes).length ? ' ' : ''}${Object.keys(a.attributes).map(b => {
-			if(b.match(/[\x09-\x0d\x20\x85\xA0\/><?!]/)) throw 'attribute name can not contain invalid characters'
+			if(err(b)) throw new Error('attribute names can not contain invalid characters')
 			return `${b}="${encode(str(a.attributes[b]), {mode: 'predefined'})}"`
-		}).join(' ')}${_a ? '' : '/'}>${!_a ? '' : (a.elements.length ? a.elements.map(b => wrEl(b)).join('') : encode(str(a.value), {mode: 'predefined'}))}${_a ? `</${a.name}>` : ''}`
+		}).join(' ')}${_b ? '' : '/'}>${!_a ? '' : (a.elements.length ? a.elements.map(b => wrEl(b)).join('') : encode(str(a.value), {mode: 'predefined'}))}${_b ? `</${a.name}>` : ''}`
 	}
 	return (op.declaration != 0 ? (typeof op.declaration == 'string' ? op.declaration : `<?xml version="1.0" encoding="UTF-8"?>`) : '') + wrEl(res)
 }
