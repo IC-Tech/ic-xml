@@ -10,7 +10,7 @@ const readXML = (res, op) => {
 	// comments remove
 	if(!op.comments) res = res.replace(/<\!--[^]*?\-->/g, '')
 	// CDATA
-	res = res.replace(/<\!\[CDATA\[([^]*?)\]\]>/, (a,b) => encode(b))
+	res = res.replace(/<\!\[CDATA\[([^]*?)\]\]>/g, (a,b) => encode(b))
 
 	const readElement = res => {
 		res = trimSt(res)
